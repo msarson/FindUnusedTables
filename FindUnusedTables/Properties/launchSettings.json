@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "FindUnusedTables": {
+      "commandName": "Project",
+      "commandLineArgs": "f:\\FindUnused"
+    }
+  }
+}
