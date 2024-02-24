@@ -2,7 +2,7 @@
   "profiles": {
     "FindUnusedTables": {
       "commandName": "Project",
-      "commandLineArgs": "f:\\FindUnused"
+      "commandLineArgs": "F:\\SQLSRC\\sqlsource"
     }
   }
 }

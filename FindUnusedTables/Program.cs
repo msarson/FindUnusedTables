@@ -45,7 +45,7 @@ namespace FindUnusedTables
                 {
                     continue;
                 }
-                CheckTableAndPrefixUsages(directoryPaths, tableDefinitions, tableAndPrefixUsages);
+                CheckTableAndPrefixUsagesV2(directoryPaths, tableDefinitions, tableAndPrefixUsages);
             }
 
             EndNightRiderBar(cts, spinnerTask);
@@ -211,16 +211,83 @@ private static Dictionary<string, TableDefinition> BuildTableDefinitions(string 
         }
 
 
+        private static void CheckTableAndPrefixUsagesV2(string directoryPath, Dictionary<string, TableDefinition> tableDefinitions, HashSet<string> tableAndPrefixUsages)
+        {
+            var usagePatterns = new Regex(
+    // Direct table operations and specific methods from FileManager and RelationManager
+        @"\b(?:ADD|PUT|DELETE|GET|NEXT|PREVIOUS|CLEAR|OPEN|RECORDS|CLOSE)\s*\(\s*(\w+)|" +
+        // Object-oriented access through ACCESS: or RELATE:, capturing method invocations
+        @"(?:ACCESS|RELATE):(\w+)\.(CancelAutoInc|ClearKey|Close|DeleteRecord|Fetch|Insert|Next|Open|Position
+            |PostDelete|PostInsert|PostUpdate|PreDelete|PreInsert|PreUpdate|Previous|PrimeAutoInc|PrimeFields|PrimeRecord|RestoreBuffer|RestoreFile|SaveBuffer|SaveFile|SetError|SetKey|SetName|SetOpenMode|Throw|ThrowMessage|TryFetch|TryInsert|TryNext|TryOpen|TryPrevious|TryPrimeAutoInc|TryReget|TryUpdate|TryValidateField|Update|UseFile|ValidateField|ValidateFields|ValidateFieldServer|ValidateRecord)\b\s*(\(\s*\))?",
+        RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+            foreach (var filePath in Directory.EnumerateFiles(directoryPath, "*.clw"))
+            {
+                foreach (var line in File.ReadLines(filePath))
+                {
+                    // Skip empty lines or lines starting directly with a comment.
+                    if (string.IsNullOrWhiteSpace(line) || line.TrimStart().StartsWith("!"))
+                    {
+                        continue;
+                    }
+
+                    // Process the line to handle comments.
+                    var lineBeforeComment = line.Split(new[] { '!' }, 2)[0];
+
+                    // Ensure the line doesn't start in the first column.
+                    if (!lineBeforeComment.StartsWith(" "))
+                    {
+                        continue;
+                    }
+
+                    var match = usagePatterns.Match(lineBeforeComment);
+                    if (match.Success)
+                    {
+                        string tableName = "";
+
+                        // Check the first capturing group from the first part of the pattern
+                        if (match.Groups[1].Success)
+                        {
+                            tableName = match.Groups[1].Value;
+                        }
+                        // The second capturing group is intended for the Access:TableName or Relate:TableName part
+                        else if (match.Groups[2].Success)
+                        {
+                            tableName = match.Groups[2].Value;
+                        }
+                        // The third capturing group for general operations not explicitly mentioning ACCESS or RELATE
+                     //   else if (match.Groups[3].Success)
+                       // {
+                         //   tableName = match.Groups[3].Value;
+                       // }
+
+                        if (!string.IsNullOrEmpty(tableName))
+                        {
+                            tableAndPrefixUsages.Add(tableName); // Add the found table name to usages
+                        }
+                    }
+                }
+            }
+        }
+
+
+
         private static void CheckTableAndPrefixUsages(string directoryPath, Dictionary<string, TableDefinition> tableDefinitions, HashSet<string> tableAndPrefixUsages)
         {
 
+            //var usagePatterns = new Regex(
+                //@"\b(?:ADD|PUT|DELETE|GET|NEXT|RELATE|TRYINSERT|TRYUPDATE|TRYFETCH|TRYDELETE|FETCH|INSERT|UPDATE|DELETE|NEXT|APPEND|ERASE|CLEAR|OPEN|RECORDS|CLOSE)\s*\(\s*(\w+)|" +
+                //@"Access:(\w+)\.\w+\(\)|" +
+                //@"\b(GET|APPEND|ERASE|CLEAR|OPEN|RECORDS|CLOSE)\s*\(\s*(\w+)",
+                //RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+
+
+            //Fixed relate matching
             var usagePatterns = new Regex(
                 @"\b(?:ADD|PUT|DELETE|GET|NEXT|RELATE|TRYINSERT|TRYUPDATE|TRYFETCH|TRYDELETE|FETCH|INSERT|UPDATE|DELETE|NEXT|APPEND|ERASE|CLEAR|OPEN|RECORDS|CLOSE)\s*\(\s*(\w+)|" +
-                @"Access:(\w+)\.\w+\(\)|" +
+                @"(?:Access|RELATE):(\w+)\.\w+\(\)|" + // Adjusted part
                 @"\b(GET|APPEND|ERASE|CLEAR|OPEN|RECORDS|CLOSE)\s*\(\s*(\w+)",
                 RegexOptions.Compiled | RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
-
-
 
 
             foreach (var filePath in Directory.EnumerateFiles(directoryPath, "*.clw"))
